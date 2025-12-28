@@ -40,6 +40,77 @@ jobs:
           task clean(type: Delete) { delete rootProject.buildDir }
           EOF
       
+      - name: Create minimal Android project
+        run: |
+          # Создаём структуру папок
+          mkdir -p app/src/main/java/com/example/stunnel
+          mkdir -p app/src/main/res/values
+          mkdir -p app/src/main/res/layout
+          
+          # AndroidManifest.xml
+          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.example.stunnel">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <application
+                  android:allowBackup="true"
+                  android:label="STunnel"
+                  android:supportsRtl="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          
+          # MainActivity.java
+          cat > app/src/main/java/com/example/stunnel/MainActivity.java << 'EOF'
+          package com.example.stunnel;
+          import androidx.appcompat.app.AppCompatActivity;
+          import android.os.Bundle;
+          public class MainActivity extends AppCompatActivity {
+              @Override protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(R.layout.activity_main);
+              }
+          }
+          EOF
+          
+          # activity_main.xml
+          cat > app/src/main/res/layout/activity_main.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent">
+              <TextView
+                  android:layout_width="wrap_content"
+                  android:layout_height="wrap_content"
+                  android:text="STunnel Client"/>
+          </LinearLayout>
+          EOF
+          
+          # strings.xml
+          cat > app/src/main/res/values/strings.xml << 'EOF'
+          <resources>
+              <string name="app_name">STunnel</string>
+          </resources>
+          EOF
+          
+          # themes.xml
+          cat > app/src/main/res/values/themes.xml << 'EOF'
+          <resources xmlns:tools="http://schemas.android.com/tools">
+              <style name="Theme.STunnel" parent="Theme.MaterialComponents.DayNight.DarkActionBar">
+                  <item name="colorPrimary">#3F51B5</item>
+              </style>
+          </resources>
+          EOF
+      
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -49,13 +120,31 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       
-      - name: Build APK with debug
+      # ⬇️⬇️⬇️ ВСТАВЬТЕ ЭТОТ ШАГ ВМЕСТО СТАРОГО "Build APK" ⬇️⬇️⬇️
+      - name: Build APK with detailed logging
         run: |
-          ./gradlew assembleDebug --info
-          echo "=== Проверка созданных файлов ==="
-          find . -name "*.apk" -type f | head -5
-          ls -la app/build/outputs/apk/ || echo "Папка apk не существует"
-          ls -la app/build/outputs/ || echo "Папка outputs не существует"
+          echo "=== Начинаем сборку ==="
+          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee build.log
+          
+          echo "=== Проверяем результат ==="
+          if [ $? -eq 0 ]; then
+            echo "✅ Gradle завершился успешно"
+          else
+            echo "❌ Gradle завершился с ошибкой"
+            cat build.log | tail -100
+          fi
+          
+          echo "=== Ищем APK файлы ==="
+          find . -name "*.apk" -type f 2>/dev/null | while read file; do
+            echo "Найден APK: $file"
+            ls -la "$file"
+          done || echo "APK файлы не найдены"
+          
+          echo "=== Структура папок ==="
+          ls -la app/build/ || echo "Нет app/build"
+          ls -la app/build/outputs/ 2>/dev/null || echo "Нет outputs"
+          ls -la app/build/outputs/apk/ 2>/dev/null || echo "Нет apk"
+      # ⬆️⬆️⬆️ КОНЕЦ ШАГА ⬆️⬆️⬆️
       
       - name: Find and list APK files
         run: |
