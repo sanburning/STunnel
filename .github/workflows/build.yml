@@ -8,23 +8,37 @@ jobs:
       
       - name: Download missing gradle files
         run: |
-          # Создаём структуру папок
           mkdir -p gradle/wrapper
-          
-          # Скачиваем gradle-wrapper.jar
           wget -q -O gradle/wrapper/gradle-wrapper.jar \
             https://github.com/gradle/gradle/raw/HEAD/gradle/wrapper/gradle-wrapper.jar
           
-          # Создаём файлы если их нет
           if [ ! -f "gradlew" ]; then
-            echo "Скачиваем полный проект..."
+            echo "Downloading full project..."
             wget -q https://github.com/guardianproject/STunnel-Android/archive/refs/heads/master.zip
             unzip -q -o master.zip
             cp -r STunnel-Android-master/* .
-            # Сохраняем ваш бинарник stunnel
             cp app/src/main/assets/stunnel stunnel-backup 2>/dev/null || true
             mv stunnel-backup app/src/main/assets/stunnel 2>/dev/null || true
           fi
+      
+      - name: Fix gradle configuration
+        run: |
+          cat > settings.gradle << 'EOF'
+          pluginManagement {
+              repositories { gradlePluginPortal(); google(); mavenCentral() }
+          }
+          dependencyResolutionManagement {
+              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = "STunnel"
+          include ':app'
+          EOF
+          
+          cat > build.gradle << 'EOF'
+          plugins { id 'com.android.application' version '8.1.0' apply false }
+          task clean(type: Delete) { delete rootProject.buildDir }
+          EOF
       
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -35,11 +49,30 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
       
-      - name: Build APK
-        run: ./gradlew assembleDebug
+      - name: Build APK with debug
+        run: |
+          ./gradlew assembleDebug --info
+          echo "=== Проверка созданных файлов ==="
+          find . -name "*.apk" -type f | head -5
+          ls -la app/build/outputs/apk/ || echo "Папка apk не существует"
+          ls -la app/build/outputs/ || echo "Папка outputs не существует"
       
-      - name: Upload APK
+      - name: Find and list APK files
+        run: |
+          echo "=== Поиск всех APK файлов ==="
+          find . -name "*.apk" -type f 2>/dev/null || echo "APK файлы не найдены"
+          
+          if [ -d "app/build/outputs/apk/debug" ]; then
+            echo "=== Содержимое debug папки ==="
+            ls -la app/build/outputs/apk/debug/
+          fi
+      
+      - name: Upload APK (if exists)
         uses: actions/upload-artifact@v4
         with:
           name: stunnel-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          if-no-files-found: warn
+          retention-days: 7
