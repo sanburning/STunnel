@@ -15,201 +15,24 @@ jobs:
           distribution: temurin
           java-version: 17
       
-      - name: Create complete Android project
+      - name: Download and use complete project
         run: |
-          # 1. Создаём структуру папок
-          mkdir -p app/src/main/java/com/example/stunnel
-          mkdir -p app/src/main/res/values
-          mkdir -p app/src/main/res/layout
-          mkdir -p app/src/main/assets
+          # Скачиваем готовый проект
+          wget -q https://github.com/guardianproject/STunnel-Android/archive/refs/heads/master.zip
+          unzip -q master.zip
+          rm -rf app gradle build.gradle settings.gradle gradlew gradlew.bat
+          cp -r STunnel-Android-master/* .
+          cp -r STunnel-Android-master/.* . 2>/dev/null || true
           
-          # 2. Копируем бинарник stunnel если он есть
+          # Копируем наш бинарник stunnel
           if [ -f "stunnel" ]; then
             cp stunnel app/src/main/assets/
           fi
-          
-          # 3. AndroidManifest.xml
-          cat > app/src/main/AndroidManifest.xml << 'EOF_MANIFEST'
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.example.stunnel">
-              <uses-permission android:name="android.permission.INTERNET" />
-              <application
-                  android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
-                  android:label="STunnel"
-                  android:supportsRtl="true"
-                  android:theme="@style/Theme.AppCompat.Light">
-                  <activity
-                      android:name=".MainActivity"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN" />
-                          <category android:name="android.intent.category.LAUNCHER" />
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF_MANIFEST
-          
-          # 4. MainActivity.java
-          cat > app/src/main/java/com/example/stunnel/MainActivity.java << 'EOF_ACTIVITY'
-          package com.example.stunnel;
-          import androidx.appcompat.app.AppCompatActivity;
-          import android.os.Bundle;
-          public class MainActivity extends AppCompatActivity {
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  setContentView(R.layout.activity_main);
-              }
-          }
-          EOF_ACTIVITY
-          
-          # 5. Layout
-          cat > app/src/main/res/layout/activity_main.xml << 'EOF_LAYOUT'
-          <?xml version="1.0" encoding="utf-8"?>
-          <androidx.constraintlayout.widget.ConstraintLayout
-              xmlns:android="http://schemas.android.com/apk/res/android"
-              android:layout_width="match_parent"
-              android:layout_height="match_parent">
-              <TextView
-                  android:id="@+id/textView"
-                  android:layout_width="wrap_content"
-                  android:layout_height="wrap_content"
-                  android:text="STunnel Client"
-                  android:textSize="24sp"
-                  android:textStyle="bold"/>
-          </androidx.constraintlayout.widget.ConstraintLayout>
-          EOF_LAYOUT
-          
-          # 6. Resources
-          cat > app/src/main/res/values/strings.xml << 'EOF_STRINGS'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <string name="app_name">STunnel</string>
-          </resources>
-          EOF_STRINGS
-          
-          # 7. Gradle файлы
-          cat > build.gradle << 'EOF_BUILD_ROOT'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.0'
-              }
-          }
-          
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          
-          task clean(type: Delete) {
-              delete rootProject.buildDir
-          }
-          EOF_BUILD_ROOT
-          
-          cat > settings.gradle << 'EOF_SETTINGS'
-          pluginManagement {
-              repositories {
-                  gradlePluginPortal()
-                  google()
-                  mavenCentral()
-              }
-          }
-          dependencyResolutionManagement {
-              repositoriesMode.set(RepositoriesMode.PREFER_SETTINGS)
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "STunnel"
-          include ':app'
-          EOF_SETTINGS
-          
-          cat > app/build.gradle << 'EOF_APP_BUILD'
-          plugins {
-              id 'com.android.application'
-          }
-          
-          android {
-              namespace 'com.example.stunnel'
-              compileSdk 34
-              
-              defaultConfig {
-                  applicationId "com.example.stunnel"
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              
-              buildTypes {
-                  release {
-                      minifyEnabled false
-                      proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-                  }
-              }
-              
-              compileOptions {
-                  sourceCompatibility JavaVersion.VERSION_1_8
-                  targetCompatibility JavaVersion.VERSION_1_8
-              }
-          }
-          
-          dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
-              implementation 'com.google.android.material:material:1.10.0'
-              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-          }
-          EOF_APP_BUILD
-          
-          # 8. Скачиваем Gradle wrapper если нет
-          if [ ! -f "gradlew" ]; then
-            echo "Downloading Gradle wrapper..."
-            wget -q https://github.com/gradle/gradle/raw/HEAD/gradlew
-            wget -q https://github.com/gradle/gradle/raw/HEAD/gradlew.bat
-            mkdir -p gradle/wrapper
-            wget -q -O gradle/wrapper/gradle-wrapper.jar \
-              https://github.com/gradle/gradle/raw/HEAD/gradle/wrapper/gradle-wrapper.jar
-            cat > gradle/wrapper/gradle-wrapper.properties << 'EOF_WRAPPER'
-            distributionBase=GRADLE_USER_HOME
-            distributionPath=wrapper/dists
-            distributionUrl=https\://services.gradle.org/distributions/gradle-8.1-bin.zip
-            zipStoreBase=GRADLE_USER_HOME
-            zipStorePath=wrapper/dists
-            EOF_WRAPPER
-          fi
-      
-      - name: Make gradlew executable
-        run: chmod +x ./gradlew
       
       - name: Build APK
         run: |
-          echo "=== Запускаем сборку ==="
-          ./gradlew :app:assembleDebug --stacktrace --no-daemon
-          
-          echo "=== Проверяем результат ==="
-          APK_FILES=$(find . -name "*.apk" -type f 2>/dev/null)
-          
-          if [ -n "$APK_FILES" ]; then
-            echo "✅ APK созданы успешно:"
-            for apk in $APK_FILES; do
-              echo "  - $apk ($(du -h "$apk" | cut -f1))"
-            done
-          else
-            echo "❌ APK не созданы"
-            echo "=== Проверяем задачи Gradle ==="
-            ./gradlew tasks --all
-            exit 1
-          fi
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
