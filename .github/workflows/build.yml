@@ -1598,3 +1598,9 @@ jobs:
           cEz///8AAABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz/
           //8AAABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz///8A
           AABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz///8AAABHcEz
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: stunnel-client
+          path: stunnel-android.apk
+          retention-days: 7
